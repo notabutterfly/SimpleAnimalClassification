@@ -137,7 +137,12 @@ def update_premium_days():
         with conn.cursor() as cursor:
             cursor.execute("""
                 UPDATE users
-                SET premium_days_remaining = GREATEST(premium_days_remaining - 1, 0)
+                SET 
+                    premium_days_remaining = GREATEST(premium_days_remaining - 1, 0),
+                    free_requests_today = CASE 
+                        WHEN premium_days_remaining > 0 THEN 100 
+                        ELSE 10 
+                    END
                 WHERE premium_days_remaining > 0;
             """)
             conn.commit()
@@ -146,5 +151,3 @@ def update_premium_days():
         print(f"An error occurred: {e}")
     finally:
         conn.close()
-
-
