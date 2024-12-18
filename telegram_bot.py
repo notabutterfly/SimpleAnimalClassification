@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
+import pytz
 import io
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import asyncio
+from datetime import time as tim
+import scheduler
 
 from uuid import uuid4
-from telegram import BotCommandScopeAllGroupChats, Update, constants
+from telegram import BotCommandScopeAllGroupChats, Update, constants, PreCheckoutQuery
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InlineQueryResultArticle
-from telegram import InputTextMessageContent, BotCommand, CallbackQuery
+from telegram import InputTextMessageContent, BotCommand, LabeledPrice
 from telegram.error import RetryAfter, TimedOut, BadRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, \
-    filters, InlineQueryHandler, CallbackQueryHandler, Application, ContextTypes, CallbackContext
+    filters, InlineQueryHandler, CallbackQueryHandler, Application, ContextTypes, CallbackContext, PreCheckoutQueryHandler, JobQueue
+
 
 from pydub import AudioSegment
 from PIL import Image
@@ -22,6 +27,7 @@ from utils import is_group_chat, get_thread_id, message_text, wrap_with_indicato
     cleanup_intermediate_files
 from openai_helper import OpenAIHelper, localized_text
 from usage_tracker import UsageTracker
+from database import *
 
 class ChatGPTTelegramBot:
     """
@@ -38,13 +44,13 @@ class ChatGPTTelegramBot:
         self.openai = openai
         bot_language = self.config['bot_language']
         self.commands = [
-            BotCommand(command='help', description=localized_text('help_description', bot_language)),
-            BotCommand(command='reset', description=localized_text('reset_description', bot_language)),
-            BotCommand(command='stats', description=localized_text('stats_description', bot_language)),
-            BotCommand(command='resend', description=localized_text('resend_description', bot_language)),
+            BotCommand(command='help', description="Все команды"),
+            BotCommand(command='reset', description="Обновить диалог"),
+            BotCommand(command='resend', description="Повторить предыдущее сообщение"),
             BotCommand(command='menu', description="Меню для управления ботом"),
-            BotCommand(command='faq', description="Общая информация и пользовательское соглашение"),
-            BotCommand(command='buy', description="Информация о ценах")
+            BotCommand(command='privacy', description="Общая информация и пользовательское соглашение"),
+            BotCommand(command='buy', description="Информация о ценах"),
+            BotCommand(command='start', description="Начальная информация")
         ]
         # If imaging is enabled, add the "image" command to the list
         if self.config.get('enable_image_generation', False):
@@ -62,37 +68,190 @@ class ChatGPTTelegramBot:
         self.last_message = {}
         self.inline_queries_cache = {}
 
-
     async def buy(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """
-        цены.
+        Отправляет информацию о подписках и кнопки для покупки дополнительных запросов.
         """
-        help_text = ("""• Подписка: 190 руб./месяц за 100 запросов/день.
- • Покупка дополнительных запросов:
- • 50 запросов: 190 руб.
- • 100 запросов: 389 руб.
- • 200 запросов: 779 руб.
- • 600 запросов: 2337 руб.
- 'Находится в разработке'"""
-        )
+        help_text = ("""SnappyGPT открывает для вас доступ к AI моделям мира в Telegram 
+
+Здесь вы можете приобрести доступ к расширенному сервису
+
+SnappyGPT Free | ЕЖЕДНЕВНО
+☑️ 10 текстовых запросов
+☑️ GPT-3.5 turbo 
+
+Подписка SnappyGPT Middle | НА МЕСЯЦ
+⁃ ✅ 100 запросов ежедневно
+⁃ ✅ GPT-4o mini и Gemini Flash 1.5
+⁃ ✅ голосовые вопросы и ответы
+⁃ ✅ интерактивные уведомления(скоро)
+⁃ ✅ работа с изображениями
+⁃ Стоимость: 100⭐️ (194 р.)* 
+
+* цены указаны в ⭐️ Stars – это валюта Telegram для оплаты ботов и приложений. 
+⁃ Как купить ⭐️ Stars? 
+
+💬 По вопросам оплаты: @snappyai_admin"""
+                     )
+
+
+        # Создаем кнопки для покупки дополнительных запросов
+        # Отправляем текстовое сообщение с информацией о подписках
         await update.message.reply_text(help_text, disable_web_page_preview=True)
 
-    def callback_message(self):
-        if CallbackQuery.data == "buy":
-            self.buy()
+        # Создаем кнопки для покупки дополнительных запросов
+        keyboard = [
+            [
+                InlineKeyboardButton("50 запросов: 100⭐️", callback_data='buy_50'),
+                InlineKeyboardButton("100 запросов: 200⭐️", callback_data='buy_100'),
+            ],
+            [
+                InlineKeyboardButton("200 запросов: 350⭐️", callback_data='buy_200'),
+                InlineKeyboardButton("600 запросов: 1000⭐️", callback_data='buy_600')
+            ],
+            [
+                InlineKeyboardButton("Подписка SnappyGPT Middle", callback_data='subscribe_middle')
+            ]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Отправляем сообщение с кнопками
+        await update.message.reply_text("""Выберите количество запросов для покупки или подписку:
+Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
+
+    async def button_handler(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+        query = update.callback_query
+        await query.answer()  # Подтверждаем нажатие кнопки
+        if query.data.startswith('buy_'):
+            # Получаем количество запросов из callback_data
+            amount = query.data.split('_')[1]
+            prices = {
+                '50': 100,
+                '100': 200,
+                '200': 350,
+                '600': 1000
+            }
+            price = prices[amount]
+            title = f"Покупка {amount} запросов"
+
+            # Создаем инвойс
+            await query.message.reply_invoice(
+                title=title,
+                description=f"Вы собираетесь купить {amount} запросов за {price}⭐️",
+                payload=f"buy_{amount}",
+                provider_token='',  # Замените на ваш токен провайдера
+                currency='XTR',
+                prices=[LabeledPrice(label="XTR", amount=price)],  # Указываем цену в копейках
+                start_parameter='buy_requests'
+            )
+
+        elif query.data == 'subscribe_middle':
+            price = 100  # Цена подписки
+            title = "Подписка SnappyGPT Middle"
+
+            # Создаем инвойс для подписки
+            await query.message.reply_invoice(
+                title=title,
+                description="Подписка SnappyGPT Middle на месяц за 100⭐️",
+                payload="subscribe_middle",
+                provider_token='',  # Замените на ваш токен провайдера
+                currency='XTR',
+                prices=[LabeledPrice(label="XTR", amount=price)],
+                # Указываем цену в копейках
+                start_parameter='subscribe_middle'
+            )
+
+    async def successful_payment_s(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        # Получаем информацию о том, что было куплено
+        payment_info = update.message.successful_payment
+        user_id = update.message.from_user.id
+        # Определите payload
+        payload = payment_info.invoice_payload
+
+        if payload.startswith('buy_'):
+            amount = payload.split('_')[1]
+            # Логика для обработки покупки запросов
+            # Сохраните информацию в базе данных о том, что пользователь купил запросы
+            update_db(user_id, paid_requests=int(amount), prem_days=0)
+
+        elif payload == 'subscribe_middle':
+            # Логика для обработки подписки
+            # Сохраните информацию о подписке в базе данных
+            update_db(user_id, 0, 30)
+
+
+        await update.message.reply_text("Спасибо за покупку, общую статистику можете посмотреть в /menu")
+
+    async def pre_checkout_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, *args) -> None:
+        query = update.pre_checkout_query
+        await query.answer(ok=True)  # Вызываем answer на предзаказ
+
 
     async def menu_s(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """
         Shows the menu.
         """
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("Цены", callback_data="buy")]])
-        help_text = ("""В этом меню вы можете управлять Snappy и приобрести платную подписку
-Количество неистраченных запрсов на этой неделе: 50
-Количество платных запрсов: 0
-Осталось дней премиума: 0
-Для ознакомления с платными функциями нажмите на кнопку"""
+        user_id = update.message.from_user.id
+        add_newuser_db(user_id)
+
+        info = get_user_info_db(user_id)
+        #markup = InlineKeyboardMarkup([[InlineKeyboardButton("Цены", callback_data="buy")]])
+        help_text = (f"""У вас подписка: SnappyGPT Free ✔️
+Выбрана модель: GPT-3.5 turbo
+
+Бесплатных запросов на сегодня: {info[2]}
+
+Куплено запросов: {info[3]}
+
+Осталось дней подписки: {info[4]}
+
+☑️ Подписка SnappyGPT Middle:
+ ⁃ 100 запросов ежедневно
+ ⁃ Голосовые вопросы и ответы
+ ⁃ Интерактивные уведомления(в будущем)
+
+
+Хочешь больше?
+Подключите в разделе /buy"""
         )
-        await update.message.reply_text(help_text, disable_web_page_preview=True, reply_markup=markup)
+        await update.message.reply_text(help_text)
+
+    async def start_s(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+        user_id = update.message.from_user.id
+        add_newuser_db(user_id)
+        """
+        Shows the help menu.
+        """
+        help_text = (
+                """Привет, меня зовут Snappy и я твой виртуальный GPT помощник на каждый день
+
+В будущем я смогу работать на моделях: GPT-4o, GPT-4o mini, OpenAI o1, OpenAI o1 mini,
+Perplexity, Gemini 1.5 Flash, Grok AI, ЯндексGPT.
+
+Бесплатно: GPT-3.5 turbo.
+
+Я имею:
+1. Работать с текстом
+2. Работать с документами
+3. Формировать задачи и пути достижения цели
+4. Писать и редактировать код
+5. Решать задачи по математике, физики 
+6. Создавать креативные идеи
+7. Голосовой ввод
+
+
+Скоро: 
+ ⁃ Интерактивные уведомления c интересным фактом / рецептом / цитатой или мотивацией
+ ⁃ Интерактивные уведомления c вопросами по темам 
+ ⁃ Интерактивные уведомления для обучение английского языка 
+ ⁃ Создание изображений по запросу
+
+Наши контакты:
+ ⁃ @snappyai_tech -  официальный канал SnappyAI 
+ ⁃ @snappyai_admin - контакт для связи"""
+            )
+        await update.message.reply_text(help_text, disable_web_page_preview=True)
 
     async def faq(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -100,7 +259,7 @@ class ChatGPTTelegramBot:
         """
         help_text = ("""﻿﻿- Указание ценовой политики на предлагаемые услуги в валюте РФ;
 
- • Бесплатные запросы: 100 запросов/неделя на каждого пользователя.
+ • Бесплатные запросы: 10 запросов/день на каждого пользователя.
  • Подписка: 190 руб./месяц за 100 запросов/день.
  • Покупка дополнительных запросов:
  • 50 запросов: 190 руб.
@@ -133,118 +292,18 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         commands_description = [f'/{command.command} - {command.description}' for command in commands]
         bot_language = self.config['bot_language']
         help_text = (
-                localized_text('help_text', bot_language)[0] +
-                '\n\n' +
-                '\n'.join(commands_description) +
-                '\n\n' +
-                localized_text('help_text', bot_language)[1]
+                """📝 Генерация текстов
+Для генерации текста напишите запрос в чат. Пользователи с подпиской /premium могут отправлять голосовые сообщения.
+
+/reset - обновить диалог
+/start – описание бота
+/menu – ваш профиль и баланс
+/buy  – покупка подписки и запросов
+/privacy – пользовательское соглашение и политика конфиденциальности
+
+По всем вопросам также можно написать администратору @snappyai_admin"""
         )
         await update.message.reply_text(help_text, disable_web_page_preview=True)
-
-    async def stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        Returns token usage statistics for current day and month.
-        """
-        if not await is_allowed(self.config, update, context):
-            logging.warning(f'User {update.message.from_user.name} (id: {update.message.from_user.id}) '
-                            'is not allowed to request their usage statistics')
-            await self.send_disallowed_message(update, context)
-            return
-
-        logging.info(f'User {update.message.from_user.name} (id: {update.message.from_user.id}) '
-                     'requested their usage statistics')
-
-        user_id = update.message.from_user.id
-        if user_id not in self.usage:
-            self.usage[user_id] = UsageTracker(user_id, update.message.from_user.name)
-
-        tokens_today, tokens_month = self.usage[user_id].get_current_token_usage()
-        images_today, images_month = self.usage[user_id].get_current_image_count()
-        (transcribe_minutes_today, transcribe_seconds_today, transcribe_minutes_month,
-         transcribe_seconds_month) = self.usage[user_id].get_current_transcription_duration()
-        vision_today, vision_month = self.usage[user_id].get_current_vision_tokens()
-        characters_today, characters_month = self.usage[user_id].get_current_tts_usage()
-        current_cost = self.usage[user_id].get_current_cost()
-
-        chat_id = update.effective_chat.id
-        chat_messages, chat_token_length = self.openai.get_conversation_stats(chat_id)
-        remaining_budget = get_remaining_budget(self.config, self.usage, update)
-        bot_language = self.config['bot_language']
-        
-        text_current_conversation = (
-            f"*{localized_text('stats_conversation', bot_language)[0]}*:\n"
-            f"{chat_messages} {localized_text('stats_conversation', bot_language)[1]}\n"
-            f"{chat_token_length} {localized_text('stats_conversation', bot_language)[2]}\n"
-            "Осталось запросов: 100}\n"
-            "----------------------------\n"
-        )
-        
-        # Check if image generation is enabled and, if so, generate the image statistics for today
-        text_today_images = ""
-        if self.config.get('enable_image_generation', False):
-            text_today_images = f"{images_today} {localized_text('stats_images', bot_language)}\n"
-
-        text_today_vision = ""
-        if self.config.get('enable_vision', False):
-            text_today_vision = f"{vision_today} {localized_text('stats_vision', bot_language)}\n"
-
-        text_today_tts = ""
-        if self.config.get('enable_tts_generation', False):
-            text_today_tts = f"{characters_today} {localized_text('stats_tts', bot_language)}\n"
-        
-        text_today = (
-            f"*{localized_text('usage_today', bot_language)}:*\n"
-            f"{tokens_today} {localized_text('stats_tokens', bot_language)}\n"
-            f"{text_today_images}"  # Include the image statistics for today if applicable
-            f"{text_today_vision}"
-            f"{text_today_tts}"
-            f"{transcribe_minutes_today} {localized_text('stats_transcribe', bot_language)[0]} "
-            f"{transcribe_seconds_today} {localized_text('stats_transcribe', bot_language)[1]}\n"
-            "----------------------------\n"
-        )
-        
-        text_month_images = ""
-        if self.config.get('enable_image_generation', False):
-            text_month_images = f"{images_month} {localized_text('stats_images', bot_language)}\n"
-
-        text_month_vision = ""
-        if self.config.get('enable_vision', False):
-            text_month_vision = f"{vision_month} {localized_text('stats_vision', bot_language)}\n"
-
-        text_month_tts = ""
-        if self.config.get('enable_tts_generation', False):
-            text_month_tts = f"{characters_month} {localized_text('stats_tts', bot_language)}\n"
-        
-        # Check if image generation is enabled and, if so, generate the image statistics for the month
-        text_month = (
-            f"*{localized_text('usage_month', bot_language)}:*\n"
-            f"{tokens_month} {localized_text('stats_tokens', bot_language)}\n"
-            f"{text_month_images}"  # Include the image statistics for the month if applicable
-            f"{text_month_vision}"
-            f"{text_month_tts}"
-            f"{transcribe_minutes_month} {localized_text('stats_transcribe', bot_language)[0]} "
-            f"{transcribe_seconds_month} {localized_text('stats_transcribe', bot_language)[1]}\n"
-        )
-
-        # text_budget filled with conditional content
-        text_budget = "\n\n"
-        budget_period = self.config['budget_period']
-        if remaining_budget < float('inf'):
-            text_budget += (
-                f"{localized_text('stats_budget', bot_language)}"
-                f"{localized_text(budget_period, bot_language)}: "
-                f"${remaining_budget:.2f}.\n"
-            )
-        # No longer works as of July 21st 2023, as OpenAI has removed the billing API
-        # add OpenAI account information for admin request
-        # if is_admin(self.config, user_id):
-        #     text_budget += (
-        #         f"{localized_text('stats_openai', bot_language)}"
-        #         f"{self.openai.get_billing_current_month():.2f}"
-        #     )
-
-        usage_text = text_current_conversation + text_today + text_month + text_budget
-        await update.message.reply_text(usage_text, parse_mode=constants.ParseMode.MARKDOWN)
 
     async def resend(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -299,6 +358,14 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         """
         Generates an image for the given prompt using DALL·E APIs
         """
+        user_id = update.message.from_user.id
+        add_newuser_db(user_id)
+
+        info = get_user_info_db(user_id)
+        if info[4] <= 0:
+            await update.message.reply_text("""Генерация изображений доступна только по подписке
+            Подробнее в /buy""", disable_web_page_preview=True)
+            return
         if not self.config['enable_image_generation'] \
                 or not await self.check_allowed_and_within_budget(update, context):
             return
@@ -351,6 +418,14 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         """
         Generates an speech for the given input using TTS APIs
         """
+        user_id = update.message.from_user.id
+        add_newuser_db(user_id)
+
+        info = get_user_info_db(user_id)
+        if info[4] <= 0:
+            await update.message.reply_text("""Генерация голоса доступна только по подписке
+                    Подробнее в /buy""", disable_web_page_preview=True)
+            return
         if not self.config['enable_tts_generation'] \
                 or not await self.check_allowed_and_within_budget(update, context):
             return
@@ -517,6 +592,14 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         """
         Interpret image using vision model.
         """
+        user_id = update.message.from_user.id
+        add_newuser_db(user_id)
+
+        info = get_user_info_db(user_id)
+        if info[4] <= 0:
+            await update.message.reply_text("""Анализ изображений доступен только по подписке
+                    Подробнее в /buy""", disable_web_page_preview=True)
+            return
         if not self.config['enable_vision'] or not await self.check_allowed_and_within_budget(update, context):
             return
 
@@ -709,6 +792,10 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         """
         React to incoming messages and respond accordingly.
         """
+        user_id = update.message.from_user.id
+        add_newuser_db(user_id)
+        prom(user_id)
+
         if update.edited_message or not update.message or update.message.via_bot:
             return
 
@@ -1079,7 +1166,7 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         if not is_inline:
             await update.effective_message.reply_text(
                 message_thread_id=get_thread_id(update),
-                text=self.disallowed_message,
+                text="Произошла непредвиденная ошибка, обратитесь в поддержку(",
                 disable_web_page_preview=True
             )
         else:
@@ -1093,7 +1180,7 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         if not is_inline:
             await update.effective_message.reply_text(
                 message_thread_id=get_thread_id(update),
-                text=self.budget_limit_message
+                text="Произошла непредвиденная ошибка, обратитесь в поддержку("
             )
         else:
             result_id = str(uuid4())
@@ -1105,6 +1192,7 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         """
         await application.bot.set_my_commands(self.group_commands, scope=BotCommandScopeAllGroupChats())
         await application.bot.set_my_commands(self.commands)
+
 
     def run(self):
         """
@@ -1122,12 +1210,11 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         application.add_handler(CommandHandler('help', self.help))
         application.add_handler(CommandHandler('image', self.image))
         application.add_handler(CommandHandler('tts', self.tts))
-        application.add_handler(CommandHandler('start', self.help))
-        application.add_handler(CommandHandler('stats', self.stats))
+        application.add_handler(CommandHandler('start', self.start_s))
         application.add_handler(CommandHandler('resend', self.resend))
         application.add_handler(CommandHandler('menu', self.menu_s))
         application.add_handler(CommandHandler('buy', self.buy))
-        application.add_handler(CommandHandler('faq', self.faq))
+        application.add_handler(CommandHandler('privacy', self.faq))
         application.add_handler(CommandHandler(
             'chat', self.prompt, filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)
         )
@@ -1142,8 +1229,14 @@ https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         application.add_handler(InlineQueryHandler(self.inline_query, chat_types=[
             constants.ChatType.GROUP, constants.ChatType.SUPERGROUP, constants.ChatType.PRIVATE
         ]))
-        application.add_handler(CallbackQueryHandler(self.handle_callback_inline_query))
-
+        application.add_handler(CallbackQueryHandler(self.button_handler))
+        application.add_handler(PreCheckoutQueryHandler(self.pre_checkout_callback))
+        #application.add_handler(CallbackQueryHandler(self.handle_callback_inline_query))
+        application.add_handler(MessageHandler(filters.SuccessfulPayment(), self.successful_payment_s))
         application.add_error_handler(error_handler)
+        application.run_polling()  # Запускаем бота
 
-        application.run_polling()
+
+
+
+
