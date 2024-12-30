@@ -727,7 +727,6 @@ For all questions, you can also write to the administrator @snappyai_admin"""
                 else:
                     raise Exception(f"env variable IMAGE_RECEIVE_MODE has invalid value {self.config['image_receive_mode']}")
                 # add image request to users usage tracker
-                user_id = update.message.from_user.id
                 self.usage[user_id].add_image_request(image_size, self.config['image_prices'])
                 # add guest chat request to guest usage tracker
                 if str(user_id) not in self.config['allowed_user_ids'].split(',') and 'guests' in self.usage:
@@ -886,7 +885,6 @@ For all questions, you can also write to the administrator @snappyai_admin"""
                     os.remove(filename)
                 return
 
-            user_id = update.message.from_user.id
             if user_id not in self.usage:
                 self.usage[user_id] = UsageTracker(user_id, update.message.from_user.name)
 
@@ -1043,7 +1041,6 @@ More details in /buy""", disable_web_page_preview=True)
             
             
 
-            user_id = update.message.from_user.id
             if user_id not in self.usage:
                 self.usage[user_id] = UsageTracker(user_id, update.message.from_user.name)
 
@@ -1335,6 +1332,8 @@ More details in /buy""", disable_web_page_preview=True)
                 add_chat_request_to_usage_tracker(self.usage, self.config, user_id, total_tokens)
 
             except Exception as e:
+                if e.description == "Forbidden: bot was blocked by the user":
+                    return
                 logging.exception(e)
                 return
 
