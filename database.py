@@ -50,9 +50,31 @@ def update_db(telegram_id,  paid_requests, prem_days):
                 UPDATE users 
                 SET paid_requests = paid_requests + %s,
                     premium_days_remaining = premium_days_remaining + %s
+                    language = %s
                 WHERE telegram_id = %s;
                 """,
                 (paid_requests, prem_days, telegram_id)
+            )
+            conn.commit()
+            print(f"Запросы для пользователя с Telegram ID {telegram_id} обновлены.")
+        except Exception as e:
+            print(f"Ошибка обновления запросов: {e}")
+        finally:
+            cur.close()
+            conn.close()
+def update_lang_db(telegram_id,  lang):
+    """Обновляет количество запросов пользователя."""
+    conn = create_connection()
+    if conn is not None:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                UPDATE users 
+                SET language = %s
+                WHERE telegram_id = %s;
+                """,
+                (lang, telegram_id)
             )
             conn.commit()
             print(f"Запросы для пользователя с Telegram ID {telegram_id} обновлены.")
@@ -124,7 +146,7 @@ def prom(telegram_id):
         conn.commit()
 
     except Exception as e:
-        print(f"Ошибка: {e}")
+        return "Limit"
     finally:        #Закрытие курсора и соединения
         if cur:
             cur.close()
@@ -143,7 +165,7 @@ def update_premium_days():
                         WHEN premium_days_remaining > 0 THEN 100 
                         ELSE 10 
                     END
-                WHERE premium_days_remaining > 0;
+                WHERE premium_days_remaining >= 0;
             """)
             conn.commit()
             print("Premium days updated successfully.")
