@@ -7,7 +7,6 @@ import io
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 from datetime import time as tim
-import scheduler
 
 from uuid import uuid4
 from telegram import BotCommandScopeAllGroupChats, Update, constants, PreCheckoutQuery
@@ -723,6 +722,16 @@ More details in /buy""", disable_web_page_preview=True)
                 await update.message.reply_text("""Voice generation is only available by subscription
 More details in /buy""", disable_web_page_preview=True)
             return
+        if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
+            if info[5] == "ru":
+                await update.message.reply_text(
+                    "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                    disable_web_page_preview=True)
+            if info[5] == "en":
+                await update.message.reply_text("""Request limit exceeded, buy new ones or subscribe, more details in /buy""", disable_web_page_preview=True)
+            return
+        else:
+            prom(user_id)
         if not self.config['enable_tts_generation'] \
                 or not await self.check_allowed_and_within_budget(update, context):
             return
@@ -901,11 +910,27 @@ More details in /buy""", disable_web_page_preview=True)
 
         info = get_user_info_db(user_id)
         if info[4] <= 0:
-            await update.message.reply_text("""Анализ изображений доступен только по подписке
-                    Подробнее в /buy""", disable_web_page_preview=True)
+            if get_user_info_db(user_id)[5] == "ru":
+                await update.message.reply_text("""Анализ изображений доступен только по подписке
+Подробнее в /buy""", disable_web_page_preview=True)
+            else:
+                await update.message.reply_text("""Image analysis is only available by subscription
+More details in /buy""", disable_web_page_preview=True)
             return
         if not self.config['enable_vision'] or not await self.check_allowed_and_within_budget(update, context):
             return
+        if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
+            if get_user_info_db(user_id)[5] == "ru":
+                await update.message.reply_text(
+                "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                disable_web_page_preview=True)
+            else:
+                await update.message.reply_text(
+                    "Request limit exceeded, buy new ones or subscribe, more details in /buy",
+                    disable_web_page_preview=True)
+            return
+        else:
+            prom(user_id)
 
         chat_id = update.effective_chat.id
         prompt = update.message.caption
