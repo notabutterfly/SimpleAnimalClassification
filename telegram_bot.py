@@ -132,15 +132,17 @@ SnappyGPT Free | ЕЖЕДНЕВНО
                 InlineKeyboardButton("Purchase for RUB", callback_data='buy_rub'),
             ]
         ]
-
-        if get_user_info_db(user_id)[5] == "ru":
-            reply_markup = InlineKeyboardMarkup(keyboard_ru)
-            await update.message.reply_text("""Выберите количество запросов для покупки или подписку:
+        try:
+            if get_user_info_db(user_id)[5] == "ru":
+                reply_markup = InlineKeyboardMarkup(keyboard_ru)
+                await update.message.reply_text("""Выберите количество запросов для покупки или подписку:
 Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
-        else:
-            reply_markup = InlineKeyboardMarkup(keyboard_en)
-            await update.message.reply_text("""Select the number of queries to purchase or a subscription:
+            else:
+                reply_markup = InlineKeyboardMarkup(keyboard_en)
+                await update.message.reply_text("""Select the number of queries to purchase or a subscription:
 Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
+        except:
+            return
 
 
 
@@ -176,18 +178,21 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
                 InlineKeyboardButton("SnappyGPT Middle Subscription", callback_data='xtr_subscribe_middle')
             ]
         ]
+        try:
+            # Отправляем сообщение с кнопками
+            if get_user_info_db(user_id)[5] == "ru":
+                reply_markup = InlineKeyboardMarkup(keyboard_ru)
+                await query.edit_message_text("""Покупка за ⭐️""", reply_markup=reply_markup)
+                await query.edit_message_text("""Выберите количество запросов для покупки или подписку:
+            Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
+            else:
+                reply_markup = InlineKeyboardMarkup(keyboard_en)
+                await query.edit_message_text("""Purchase for ⭐️""", reply_markup=reply_markup)
+                await query.edit_message_text("""Select the number of queries to purchase or a subscription:
+            Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
+        except:
+            return
 
-        # Отправляем сообщение с кнопками
-        if get_user_info_db(user_id)[5] == "ru":
-            reply_markup = InlineKeyboardMarkup(keyboard_ru)
-            await query.edit_message_text("""Покупка за ⭐️""", reply_markup=reply_markup)
-            await query.edit_message_text("""Выберите количество запросов для покупки или подписку:
-Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
-        else:
-            reply_markup = InlineKeyboardMarkup(keyboard_en)
-            await query.edit_message_text("""Purchase for ⭐️""", reply_markup=reply_markup)
-            await query.edit_message_text("""Select the number of queries to purchase or a subscription:
-Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
 
     async def buy_rub(self, query) -> None:
         """
@@ -221,18 +226,21 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
                 InlineKeyboardButton("SnappyGPT Middle Subscription", callback_data='rub_subscribe_middle')
             ]
         ]
+        try:
+            # Отправляем сообщение с кнопками
+            if get_user_info_db(user_id)[5] == "ru":
+                reply_markup = InlineKeyboardMarkup(keyboard_ru)
+                await query.edit_message_text("""Покупка за RUB""", reply_markup=reply_markup)
+                await query.edit_message_text("""Выберите количество запросов для покупки или подписку:
+            Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
+            else:
+                reply_markup = InlineKeyboardMarkup(keyboard_en)
+                await query.edit_message_text("""Purchase for RUB""", reply_markup=reply_markup)
+                await query.edit_message_text("""Select the number of queries to purchase or a subscription:
+            Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
+        except:
+            return
 
-        # Отправляем сообщение с кнопками
-        if get_user_info_db(user_id)[5] == "ru":
-            reply_markup = InlineKeyboardMarkup(keyboard_ru)
-            await query.edit_message_text("""Покупка за RUB""", reply_markup=reply_markup)
-            await query.edit_message_text("""Выберите количество запросов для покупки или подписку:
-Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
-        else:
-            reply_markup = InlineKeyboardMarkup(keyboard_en)
-            await query.edit_message_text("""Purchase for RUB""", reply_markup=reply_markup)
-            await query.edit_message_text("""Select the number of queries to purchase or a subscription:
-Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
 
     async def button_handler(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
@@ -404,10 +412,13 @@ Connect in the /buy section"""
 Хочешь больше?
 Подключите в разделе /buy"""
         )
-        if get_user_info_db(user_id)[5] == "ru":
-            await update.message.reply_text(help_text_ru)
-        if get_user_info_db(user_id)[5] == "en":
-            await update.message.reply_text(help_text_en)
+        try:
+            if get_user_info_db(user_id)[5] == "ru":
+                await update.message.reply_text(help_text_ru)
+            if get_user_info_db(user_id)[5] == "en":
+                await update.message.reply_text(help_text_en)
+        except:
+            return
 
     async def start(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         user_id = update.message.from_user.id
@@ -421,14 +432,17 @@ Connect in the /buy section"""
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Отправляем сообщение с кнопками
-        with Image.open('snappy_hello.jpg') as img:
-            img.thumbnail((1280, 1280))  # Изменение размера с сохранением соотношения сторон
-            img_byte_arr = io.BytesIO()
-            img.save(img_byte_arr, format='PNG')  # Сохранение в формате PNG или JPEG
-            img_byte_arr.seek(0)
-            await update.message.reply_photo(img_byte_arr)
-            await update.message.reply_text("""Select language:""", reply_markup=reply_markup)
+        try:
+            # Отправляем сообщение с кнопками
+            with Image.open('snappy_hello.jpg') as img:
+                img.thumbnail((1280, 1280))  # Изменение размера с сохранением соотношения сторон
+                img_byte_arr = io.BytesIO()
+                img.save(img_byte_arr, format='PNG')  # Сохранение в формате PNG или JPEG
+                img_byte_arr.seek(0)
+                await update.message.reply_photo(img_byte_arr)
+                await update.message.reply_text("""Select language:""", reply_markup=reply_markup)
+        except:
+            return
 
 
     async def start_s(self, query) -> None:
@@ -482,10 +496,13 @@ Our contacts:
  ⁃ @snappyai_tech -  официальный канал SnappyAI 
  ⁃ @snappyai_admin - контакт для связи"""
             )
-        if get_user_info_db(user_id)[5] == "ru":
-            await query.edit_message_text(text=help_text_ru)
-        else:
-            await query.edit_message_text(text=help_text_en)
+        try:
+            if get_user_info_db(user_id)[5] == "ru":
+                await query.edit_message_text(text=help_text_ru)
+            else:
+                await query.edit_message_text(text=help_text_en)
+        except:
+            return
 
 
     async def faq(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -537,10 +554,13 @@ snappyaitech@gmail.com
 ﻿﻿- Договор оферты:
 https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
         )
-        if get_user_info_db(user_id)[5] == "ru":
-            await update.message.reply_text(help_text_ru, disable_web_page_preview=True)
-        else:
-            await update.message.reply_text(help_text_en, disable_web_page_preview=True)
+        try:
+            if get_user_info_db(user_id)[5] == "ru":
+                await update.message.reply_text(help_text_ru, disable_web_page_preview=True)
+            else:
+                await update.message.reply_text(help_text_en, disable_web_page_preview=True)
+        except:
+            return
 
     async def help(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -581,10 +601,13 @@ For all questions, you can also write to the administrator @snappyai_admin"""
 
 По всем вопросам также можно написать администратору @snappyai_admin"""
         )
-        if get_user_info_db(user_id)[5] == "ru":
-            await update.message.reply_text(help_text_ru, disable_web_page_preview=True)
-        elif get_user_info_db(user_id)[5] == "en":
-            await update.message.reply_text(help_text_en, disable_web_page_preview=True)
+        try:
+            if get_user_info_db(user_id)[5] == "ru":
+                await update.message.reply_text(help_text_ru, disable_web_page_preview=True)
+            elif get_user_info_db(user_id)[5] == "en":
+                await update.message.reply_text(help_text_en, disable_web_page_preview=True)
+        except:
+            return
 
     async def resend(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -641,28 +664,31 @@ For all questions, you can also write to the administrator @snappyai_admin"""
         """
         user_id = update.message.from_user.id
         add_newuser_db(user_id)
-
-        info = get_user_info_db(user_id)
-        if info[4] <= 0:
-            if info[5] == "ru":
-                await update.message.reply_text("""Генерация изображений доступна только по подписке
-Подробнее в /buy""", disable_web_page_preview=True)
-            if info[5] == "en":
-                await update.message.reply_text("""Image generation is only available by subscription
-More details in /buy""", disable_web_page_preview=True)
-            return
-        if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
-            if get_user_info_db(user_id)[5] == "ru":
-                await update.message.reply_text(
-                "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
-                disable_web_page_preview=True)
+        try:
+            info = get_user_info_db(user_id)
+            if info[4] <= 0:
+                if info[5] == "ru":
+                    await update.message.reply_text("""Генерация изображений доступна только по подписке
+            Подробнее в /buy""", disable_web_page_preview=True)
+                if info[5] == "en":
+                    await update.message.reply_text("""Image generation is only available by subscription
+            More details in /buy""", disable_web_page_preview=True)
+                return
+            if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
+                if get_user_info_db(user_id)[5] == "ru":
+                    await update.message.reply_text(
+                        "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                        disable_web_page_preview=True)
+                else:
+                    await update.message.reply_text(
+                        "Request limit exceeded, buy new ones or subscribe, more details in /buy",
+                        disable_web_page_preview=True)
+                return
             else:
-                await update.message.reply_text(
-                    "Request limit exceeded, buy new ones or subscribe, more details in /buy",
-                    disable_web_page_preview=True)
+                prom(user_id)
+        except:
             return
-        else:
-            prom(user_id)
+
         if not self.config['enable_image_generation'] \
                 or not await self.check_allowed_and_within_budget(update, context):
             return
@@ -724,26 +750,30 @@ More details in /buy""", disable_web_page_preview=True)
         """
         user_id = update.message.from_user.id
         add_newuser_db(user_id)
-
-        info = get_user_info_db(user_id)
-        if info[4] <= 0:
-            if info[5] == "ru":
-                await update.message.reply_text("""Генерация голоса доступна только по подписке
-Подробнее в /buy""", disable_web_page_preview=True)
-            if info[5] == "en":
-                await update.message.reply_text("""Voice generation is only available by subscription
-More details in /buy""", disable_web_page_preview=True)
+        try:
+            info = get_user_info_db(user_id)
+            if info[4] <= 0:
+                if info[5] == "ru":
+                    await update.message.reply_text("""Генерация голоса доступна только по подписке
+            Подробнее в /buy""", disable_web_page_preview=True)
+                if info[5] == "en":
+                    await update.message.reply_text("""Voice generation is only available by subscription
+            More details in /buy""", disable_web_page_preview=True)
+                return
+            if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
+                if info[5] == "ru":
+                    await update.message.reply_text(
+                        "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                        disable_web_page_preview=True)
+                if info[5] == "en":
+                    await update.message.reply_text(
+                        """Request limit exceeded, buy new ones or subscribe, more details in /buy""",
+                        disable_web_page_preview=True)
+                return
+            else:
+                prom(user_id)
+        except:
             return
-        if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
-            if info[5] == "ru":
-                await update.message.reply_text(
-                    "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
-                    disable_web_page_preview=True)
-            if info[5] == "en":
-                await update.message.reply_text("""Request limit exceeded, buy new ones or subscribe, more details in /buy""", disable_web_page_preview=True)
-            return
-        else:
-            prom(user_id)
         if not self.config['enable_tts_generation'] \
                 or not await self.check_allowed_and_within_budget(update, context):
             return
@@ -1306,12 +1336,7 @@ More details in /buy""", disable_web_page_preview=True)
 
             except Exception as e:
                 logging.exception(e)
-                await update.effective_message.reply_text(
-                    message_thread_id=get_thread_id(update),
-                    reply_to_message_id=get_reply_to_message_id(self.config, update),
-                    text=f"{localized_text('chat_fail', self.config['bot_language'])} {str(e)}",
-                    parse_mode=constants.ParseMode.MARKDOWN
-                )
+                return
 
     async def inline_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
