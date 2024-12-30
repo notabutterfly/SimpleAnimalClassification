@@ -797,6 +797,19 @@ More details in /buy""", disable_web_page_preview=True)
         """
         Transcribe audio messages.
         """
+        user_id = update.message.from_user.id
+        if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
+            if get_user_info_db(user_id)[5] == "ru":
+                await update.message.reply_text(
+                "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                disable_web_page_preview=True)
+            else:
+                await update.message.reply_text(
+                    "Request limit exceeded, buy new ones or subscribe, more details in /buy",
+                    disable_web_page_preview=True)
+            return
+        else:
+            prom(user_id)
         if not self.config['enable_transcription'] or not await self.check_allowed_and_within_budget(update, context):
             return
 
