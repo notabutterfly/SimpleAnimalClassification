@@ -309,7 +309,7 @@ Payment in rubles is a test, you can buy requests only through stars⭐️""", r
                     payload="rub_subscribe_middle",
                     provider_token='1744374395:TEST:9d07dfce7d711c21435a',  # Замените на ваш токен провайдера
                     currency='RUB',
-                    prices=[LabeledPrice(label="RUB", amount=price * 100)],
+                    prices=[LabeledPrice(label="RUB", amount=price)],
                     # Указываем цену в копейках
                     start_parameter='subscribe_middle'
                 )
@@ -1179,7 +1179,7 @@ More details in /buy""", disable_web_page_preview=True)
         add_newuser_db(user_id)
         if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
             await update.message.reply_text("Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy", disable_web_page_preview=True)
-            return 
+            return
         else:
             prom(user_id)
         if update.edited_message or not update.message or update.message.via_bot:
@@ -1614,7 +1614,7 @@ More details in /buy""", disable_web_page_preview=True)
         ]))
         application.add_handler(CallbackQueryHandler(self.button_handler))
         application.add_handler(PreCheckoutQueryHandler(self.pre_checkout_callback))
-        application.add_handler(CallbackQueryHandler(self.handle_callback_inline_query))
+        #application.add_handler(CallbackQueryHandler(self.handle_callback_inline_query))
         application.add_handler(MessageHandler(filters.SuccessfulPayment(), self.successful_payment_s))
         application.add_error_handler(error_handler)
         application.run_polling()  # Запускаем бота
