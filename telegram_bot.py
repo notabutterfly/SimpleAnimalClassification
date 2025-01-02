@@ -184,12 +184,12 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
                 reply_markup = InlineKeyboardMarkup(keyboard_ru)
                 await query.edit_message_text("""Покупка за ⭐️""", reply_markup=reply_markup)
                 await query.edit_message_text("""Выберите количество запросов для покупки или подписку:
-            Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
+Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
             else:
                 reply_markup = InlineKeyboardMarkup(keyboard_en)
                 await query.edit_message_text("""Purchase for ⭐️""", reply_markup=reply_markup)
                 await query.edit_message_text("""Select the number of queries to purchase or a subscription:
-            Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
+Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
         except:
             return
 
@@ -231,13 +231,15 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
             if get_user_info_db(user_id)[5] == "ru":
                 reply_markup = InlineKeyboardMarkup(keyboard_ru)
                 await query.edit_message_text("""Покупка за RUB""", reply_markup=reply_markup)
-                await query.edit_message_text("""Выберите количество запросов для покупки или подписку:
-            Платные запросы используются после израсходования лимита бесплатных""", reply_markup=reply_markup)
+                await query.edit_message_text("""ВАЖНО!
+Оплата в рублях скоро заработает! На данный момент оплата в рублях тестовая. 
+Купить запросы получится только через звезды⭐️""", reply_markup=reply_markup)
             else:
                 reply_markup = InlineKeyboardMarkup(keyboard_en)
                 await query.edit_message_text("""Purchase for RUB""", reply_markup=reply_markup)
-                await query.edit_message_text("""Select the number of queries to purchase or a subscription:
-            Paid queries are used after the free limit is used up""", reply_markup=reply_markup)
+                await query.edit_message_text("""IMPORTANT!
+Payment in rubles will work soon! At the moment. 
+Payment in rubles is a test, you can buy requests only through stars⭐️""", reply_markup=reply_markup)
         except:
             return
 
@@ -305,7 +307,7 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
                     title=title,
                     description="SnappyGPT Middle Monthly Subscription for 200rub",
                     payload="rub_subscribe_middle",
-                    provider_token='1744374395:TEST:9f22fbac6e78f99cb582',  # Замените на ваш токен провайдера
+                    provider_token='1744374395:TEST:9d07dfce7d711c21435a',  # Замените на ваш токен провайдера
                     currency='RUB',
                     prices=[LabeledPrice(label="RUB", amount=price * 100)],
                     # Указываем цену в копейках
@@ -326,7 +328,7 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
                     title=title,
                     description=f"You are about to buy {amount} queries for {price}rub",
                     payload=f"rub_{amount}",
-                    provider_token='1744374395:TEST:9f22fbac6e78f99cb582',  # Замените на ваш токен провайдера
+                    provider_token='1744374395:TEST:9d07dfce7d711c21435a',  # Замените на ваш токен провайдера
                     currency='RUB',
                     prices=[LabeledPrice(label="RUB", amount=price * 100)],  # Указываем цену в копейках
                     start_parameter='buy_requests'
@@ -351,16 +353,17 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
         elif payload.startswith('rub_'):
             # Логика для обработки покупки запросов
             # Сохраните информацию в базе данных о том, что пользователь купил запросы
-            await update.message.reply_text("Тестовый платеж проведен успешно!, настоящая оплата работает в валюте telegram stars⭐️")
+            await update.message.reply_text("Тестовый платеж проведен успешно!, настоящая оплата работает в валюте telegram stars⭐️ Скоро мы добавим оплату в рублях")
         elif payload == 'rub_subscribe_middle':
             # Логика для обработки подписки
             # Сохраните информацию о подписке в базе данных
             await update.message.reply_text(
-                "Тестовый платеж проведен успешно!, настоящая оплата работает в валюте telegram stars⭐️")
+                "Тестовый платеж проведен успешно!, настоящая оплата работает в валюте telegram stars⭐️ Скоро мы добавим оплату в рублях")
         elif payload == 'subscribe_middle':
             # Логика для обработки подписки
             # Сохраните информацию о подписке в базе данных
             update_db(user_id, 0, 30)
+            buy_prem_db(user_id)
             await update.message.reply_text("Спасибо за покупку, общую статистику можете посмотреть в /myaccount")
 
 
@@ -1334,6 +1337,7 @@ More details in /buy""", disable_web_page_preview=True)
             except Exception as e:
                 if e.description == "Forbidden: bot was blocked by the user":
                     return
+                print("promt: ", end="")
                 logging.exception(e)
                 return
 

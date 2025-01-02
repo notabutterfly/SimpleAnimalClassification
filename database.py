@@ -50,7 +50,6 @@ def update_db(telegram_id,  paid_requests, prem_days):
                 UPDATE users 
                 SET paid_requests = paid_requests + %s,
                     premium_days_remaining = premium_days_remaining + %s
-                    language = %s
                 WHERE telegram_id = %s;
                 """,
                 (paid_requests, prem_days, telegram_id)
@@ -62,6 +61,30 @@ def update_db(telegram_id,  paid_requests, prem_days):
         finally:
             cur.close()
             conn.close()
+
+def buy_prem_db(telegram_id):
+    """Обновляет количество запросов пользователя."""
+    conn = create_connection()
+    if conn is not None:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                UPDATE users 
+                SET free_requests_today = CASE 
+                        WHEN premium_days_remaining > 0 THEN 100
+                WHERE telegram_id = %s;
+                """,
+                (telegram_id)
+            )
+            conn.commit()
+            print(f"Запросы для пользователя с Telegram ID {telegram_id} обновлены.")
+        except Exception as e:
+            print(f"Ошибка обновления запросов после покупки премиума: {e}")
+        finally:
+            cur.close()
+            conn.close()
+
 def update_lang_db(telegram_id,  lang):
     """Обновляет количество запросов пользователя."""
     conn = create_connection()
@@ -77,9 +100,8 @@ def update_lang_db(telegram_id,  lang):
                 (lang, telegram_id)
             )
             conn.commit()
-            print(f"Запросы для пользователя с Telegram ID {telegram_id} обновлены.")
         except Exception as e:
-            print(f"Ошибка обновления запросов: {e}")
+            print(f"Ошибка смены языка: {e}")
         finally:
             cur.close()
             conn.close()
