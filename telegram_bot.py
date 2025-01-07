@@ -665,6 +665,11 @@ For all questions, you can also write to the administrator @snappyai_admin"""
         """
         Generates an image for the given prompt using DALL·E APIs
         """
+        if update.edited_message or not update.message or update.message.via_bot:
+            return
+
+        if not await self.check_allowed_and_within_budget(update, context):
+            return
         user_id = update.message.from_user.id
         add_newuser_db(user_id)
         try:
@@ -750,6 +755,11 @@ For all questions, you can also write to the administrator @snappyai_admin"""
         """
         Generates an speech for the given input using TTS APIs
         """
+        if update.edited_message or not update.message or update.message.via_bot:
+            return
+
+        if not await self.check_allowed_and_within_budget(update, context):
+            return
         user_id = update.message.from_user.id
         add_newuser_db(user_id)
         try:
@@ -828,6 +838,11 @@ For all questions, you can also write to the administrator @snappyai_admin"""
         """
         Transcribe audio messages.
         """
+        if update.edited_message or not update.message or update.message.via_bot:
+            return
+
+        if not await self.check_allowed_and_within_budget(update, context):
+            return
         user_id = update.message.from_user.id
         if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
             if get_user_info_db(user_id)[5] == "ru":
@@ -960,6 +975,11 @@ For all questions, you can also write to the administrator @snappyai_admin"""
         """
         Interpret image using vision model.
         """
+        if update.edited_message or not update.message or update.message.via_bot:
+            return
+
+        if not await self.check_allowed_and_within_budget(update, context):
+            return
         user_id = update.message.from_user.id
         add_newuser_db(user_id)
 
@@ -1191,7 +1211,7 @@ More details in /buy""", disable_web_page_preview=True)
             prom(user_id)
 
 
-        
+
         logging.info(
             f'New message received from user (id: {user_id}) (f:{get_user_info_db(user_id)[2]}, p:{get_user_info_db(user_id)[3]}, p_d:{get_user_info_db(user_id)[4]})')
         chat_id = update.effective_chat.id
