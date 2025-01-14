@@ -43,15 +43,15 @@ class ChatGPTTelegramBot:
         self.openai = openai
         bot_language = self.config['bot_language']
         self.commands = [
-            BotCommand(command='start', description="Initial information(Начальная информация)"),
-            BotCommand(command='buy', description="Price information(Информация о ценах)"),
-            BotCommand(command='image', description="Create an image on request (eg /image cat) 'Создать изображение по запросу (например, /image кошка)'"),
-            BotCommand(command='tts', description="Create speech from text (eg /tts my house) 'Создать речь из текста (например, /tts мой дом)'"),
-            BotCommand(command='resend', description="Repeat previous message(Повторить предыдущее сообщение)"),
-            BotCommand(command='reset', description="Refresh Dialogue(Обновить диалог)"),
-            BotCommand(command='myaccount', description="Account information(Информация об аккаунте)"),
-            BotCommand(command='privacy', description="General information and user agreement(Общая информация и пользовательское соглашение)"),
-            BotCommand(command='help', description="All commands (Все команды)")
+            BotCommand(command='start', description="старт | start"),
+            BotCommand(command='buy', description="цены | price"),
+            BotCommand(command='image', description="генерация изображения | image generation'"),
+            BotCommand(command='tts', description="голосовой режим | voice mode'"),
+            BotCommand(command='resend', description="повтор сообщения | repeat message"),
+            BotCommand(command='reset', description="обновить диалог | refresh dialogue"),
+            BotCommand(command='myaccount', description="мой профиль | my profile"),
+            BotCommand(command='privacy', description="пользовательское соглашение"),
+            BotCommand(command='help', description="все команды | all commands")
         ]
         # If imaging is enabled, add the "image" command to the list
         if self.config.get('enable_image_generation', False):
@@ -74,40 +74,94 @@ class ChatGPTTelegramBot:
         Отправляет информацию о подписках и кнопки для покупки дополнительных запросов.
         """
         user_id = update.message.from_user.id
-        help_text_en = ("""SnappyGPT gives you access to the world's AI models in Telegram
+        help_text_en = ("""SnappyGPT unlocks access to the world's AI models on Telegram (ChatGPT 4o / Grok / Midjourney).
 
-You can purchase access to the extended service here
+Here, you can purchase access to advanced services through subscriptions or request packages.
 
-SnappyGPT Free | DAILY
-☑️ 10 text queries
-☑️ GPT-4o
+Our Subscriptions:
 
-SnappyGPT Middle Subscription | MONTHLY
-⁃ ✅ 100 queries daily
-⁃ ✅ interactive notifications (coming soon)
-⁃ ✅ working with images
-⁃ Cost: 100⭐️ (~210 rubles)*
+⚪️SnappyGPT Free | DAILY
 
-* prices are in ⭐️ Stars are Telegram's currency for paying for bots and applications.
-⁃ How to buy ⭐️ Stars?
+- 10 text requests per day
+- GPT-4o
+- Voice text input
 
-💬 For payment questions: @snappyai_admin"""
+- Cost: Free
+-------------
+
+NEW 🔵SnappyGPT Middle Subscription | MONTHLY
+
+- ✅ 100 ChatGPT requests daily
+- ✅ 30 Midjourney generations
+- ✅ Interactive notifications (weather, facts, etc.)
+- ✅ File handling with ChatGPT
+- ✅ Daily task setting
+- ✅ Task integration with Google and Apple Calendar
+- ✅ Voice text input
+
+- Cost: 200⭐️ (~2 $)* 
+-------------
+
+Purchasing Requests:
+
+You can purchase additional requests for SnappyGPT.
+
+Paid requests are used after the free limit is exhausted.
+
+Additional Information:
+
+* Prices are indicated in ⭐️ Stars – Telegram's currency for paying bots and applications. 
+
+⁉️ How to buy ⭐️ Stars?
+
+💬 For payment inquiries: @snappyai_admin"""
                         )
-        help_text_ru = ("""SnappyGPT открывает для вас доступ к AI моделям мира в Telegram 
+        help_text_ru = ("""SnappyGPT открывает для вас доступ к AI моделям мира в Telegram ( ChatGPT 4o / Grok / Midjourney )
 
-Здесь вы можете приобрести доступ к расширенному сервису
+Здесь вы можете приобрести доступ к расширенному сервису в виде подписки или покупки запросов.
 
-SnappyGPT Free | ЕЖЕДНЕВНО
-☑️ 10 текстовых запросов
-☑️ GPT-4o
-Подписка SnappyGPT Middle | НА МЕСЯЦ
-⁃ ✅ 100 запросов ежедневно
-⁃ ✅ интерактивные уведомления(скоро)
-⁃ ✅ работа с изображениями
-⁃ Стоимость: 100⭐️ (~210 р.)* 
+
+
+Наши подписки: 
+
+⚪️SnappyGPT Free | ЕЖЕДНЕВНО
+
+-  10 текстовых запросов в день
+-  GPT-4o
+-  голосовой ввод текста
+
+⁃ Стоимость: Бесплатно
+-------------
+
+NEW 🔵Подписка SnappyGPT Middle | НА МЕСЯЦ
+
+⁃ ✅ 100 запросов ChatGPT ежедневно
+⁃ ✅ 30 генираций Midjourney
+⁃ ✅ интерактивные уведомления (погода, факты и тд)
+⁃ ✅ работа с файлами от ChatGPT
+⁃ ✅ постановка ежедневных задач
+⁃ ✅ интеграция задач с Google и Apple Сalendar
+⁃ ✅ постановка ежедневных задач
+- ✅ голосовой ввод текста
+
+
+⁃ Стоимость: 200⭐️ (~290 р.)* 
+-------------
+ 
+
+Покупка запросов:
+
+Вы можете приобрести дополнительное количество запросов для SnappyGPT
+
+Платные запросы используются после израсходования лимита бесплатных
+
+
+
+Доп информация: 
 
 * цены указаны в ⭐️ Stars – это валюта Telegram для оплаты ботов и приложений. 
-⁃ Как купить ⭐️ Stars? 
+
+⁉️ Как купить ⭐️ Stars? (https://teletype.in/@snappyai_tech/M609LVOdF5P)
 
 💬 По вопросам оплаты: @snappyai_admin"""
                      )
@@ -236,7 +290,7 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
 Купить запросы получится только через звезды⭐️""", reply_markup=reply_markup)
             else:
                 reply_markup = InlineKeyboardMarkup(keyboard_en)
-                await query.edit_message_text("""Purchase for RUB""", reply_markup=reply_markup)
+                await query.edit_message_text("""Purchase for $""", reply_markup=reply_markup)
                 await query.edit_message_text("""IMPORTANT!
 Payment in rubles will work soon! At the moment. 
 Payment in rubles is a test, you can buy requests only through stars⭐️""", reply_markup=reply_markup)
@@ -390,10 +444,15 @@ Purchased queries: {info[3]}
 
 Subscription days remaining: {info[4]}
 
-☑️ SnappyGPT Middle subscription:
-⁃ 100 queries daily
-⁃ Voice questions and answers
-⁃ Interactive notifications (in the future)
+🔵 SnappyGPT Middle Subscription | PER MONTH
+
+- ✅ 100 ChatGPT requests daily
+- ✅ 30 Midjourney generations
+- ✅ Interactive notifications (weather, facts, etc.)
+- ✅ File handling with ChatGPT
+- ✅ Daily task setting
+- ✅ Task integration with Google and Apple Calendar
+- ✅ Voice input for text
 
 Want more?
 Connect in the /buy section"""
@@ -406,10 +465,16 @@ Connect in the /buy section"""
 
 Осталось дней подписки: {info[4]}
 
-☑️ Подписка SnappyGPT Middle:
- ⁃ 100 запросов ежедневно
- ⁃ Голосовые вопросы и ответы
- ⁃ Интерактивные уведомления(в будущем)
+🔵Подписка SnappyGPT Middle | НА МЕСЯЦ
+
+⁃ ✅ 100 запросов ChatGPT ежедневно
+⁃ ✅ 30 генираций Midjourney
+⁃ ✅ интерактивные уведомления (погода, факты и тд)
+⁃ ✅ работа с файлами от ChatGPT
+⁃ ✅ постановка ежедневных задач
+⁃ ✅ интеграция задач с Google и Apple Сalendar
+⁃ ✅ постановка ежедневных задач
+- ✅ голосовой ввод текста
 
 
 Хочешь больше?
@@ -480,20 +545,17 @@ Our contacts:
                 """Привет, меня зовут Snappy и я - твой виртуальный GPT помощник на каждый день.
 
 Я умею:
-1. Работать с текстом(GPT-4o)
+1. Работать с текстом (GPT-4o)
 2. Работать с документами
 3. Формировать задачи и пути достижения цели
 4. Писать и редактировать код
 5. Решать задачи по математике, физике
 6. Создавать креативные идеи
-7. Голосовой ввод(Whisper)
-8. Генерировать изображения(DALL·E)
-
-
-Скоро: 
- ⁃ Интерактивные уведомления c интересным фактом / рецептом / цитатой или мотивацией
- ⁃ Интерактивные уведомления c вопросами по темам 
- ⁃ Интерактивные уведомления для изучения английского языка 
+7. Голосовой ввод (Whisper)
+8. Генерировать изображения (DALL·E)
+9. Интерактивные уведомления (Погода, Английский, Факты и тд)
+10. Таск менеджер на каждый день
+11. Интеграция с Календарем
 
 Наши контакты:
  ⁃ @snappyai_tech -  официальный канал SnappyAI 
@@ -513,49 +575,17 @@ Our contacts:
         Shows the F.A.Q.
         """
         user_id = update.message.from_user.id
-        help_text_en = ("""
-• Free queries: 10 queries/day per user.
-• Subscription: 190 rubles/month for 100 queries/day.
-• Purchase additional queries:
-• 50 queries: 190 rubles.
-• 100 queries: 389 rubles.
-• 200 queries: 779 rubles.
-• 600 queries: 2337 rubles.
+        help_text_en = ("""- Offer Agreement:
+https://teletype.in/@snappyai_tech/CrvK5Rhk32x
 
-
-
-ИП Толстых Никита Александрович
-ИНН 744815548295 ОГРНИП: 323784700041704
-
-﻿﻿- Contact details (phone, e-mail):
-
-+7 916 647 16 10
-snappyaitech@gmail.com
-
-﻿﻿- Offer Agreement:
-https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
+- Contact Information:
+snappyaitech@gmail.com"""
                         )
-        help_text_ru = ("""
- • Бесплатные запросы: 10 запросов/день на каждого пользователя.
- • Подписка: 190 руб./месяц за 100 запросов/день.
- • Покупка дополнительных запросов:
- • 50 запросов: 190 руб.
- • 100 запросов: 389 руб.
- • 200 запросов: 779 руб.
- • 600 запросов: 2337 руб.
+        help_text_ru = ("""﻿- Договор оферты:
+https://teletype.in/@snappyai_tech/CrvK5Rhk32x
 
-
-
-ИП Толстых Никита Александрович
-ИНН 744815548295 ОГРНИП: 323784700041704
-
-﻿﻿- Контактные данные (телефон, e-mail):
-
-+7 916 647 16 10
-snappyaitech@gmail.com
-
-﻿﻿- Договор оферты:
-https://teletype.in/@snappyai_tech/CrvK5Rhk32x"""
+﻿﻿- Контактные данные:
+snappyaitech@gmail.com"""
         )
         try:
             if get_user_info_db(user_id)[5] == "ru":
@@ -685,7 +715,7 @@ For all questions, you can also write to the administrator @snappyai_admin"""
             if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
                 if get_user_info_db(user_id)[5] == "ru":
                     await update.message.reply_text(
-                        "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                        "Упс..Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
                         disable_web_page_preview=True)
                 else:
                     await update.message.reply_text(
@@ -775,7 +805,7 @@ For all questions, you can also write to the administrator @snappyai_admin"""
             if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
                 if info[5] == "ru":
                     await update.message.reply_text(
-                        "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                        "Упс..Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
                         disable_web_page_preview=True)
                 if info[5] == "en":
                     await update.message.reply_text(
@@ -847,7 +877,7 @@ For all questions, you can also write to the administrator @snappyai_admin"""
         if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
             if get_user_info_db(user_id)[5] == "ru":
                 await update.message.reply_text(
-                "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                "Упс..Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
                 disable_web_page_preview=True)
             else:
                 await update.message.reply_text(
@@ -997,7 +1027,7 @@ More details in /buy""", disable_web_page_preview=True)
         if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
             if get_user_info_db(user_id)[5] == "ru":
                 await update.message.reply_text(
-                "Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
+                "Упс..Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy",
                 disable_web_page_preview=True)
             else:
                 await update.message.reply_text(
@@ -1205,7 +1235,7 @@ More details in /buy""", disable_web_page_preview=True)
         add_newuser_db(user_id)
 
         if int(get_user_info_db(user_id)[2]) == 0 and int(get_user_info_db(user_id)[3] == 0):
-            await update.message.reply_text("Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy", disable_web_page_preview=True)
+            await update.message.reply_text("Упс..Превышен лимит запрсов, купите новые или оформите подписку, подробнее в /buy", disable_web_page_preview=True)
             return
         else:
             prom(user_id)
