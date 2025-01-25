@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import pytz
@@ -299,6 +300,7 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
     async def button_handler(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
         user_id = query.from_user.id
+        chat_id = query.message.chat.id
         await query.answer()  # Подтверждаем нажатие кнопки
         if query.data.startswith('ln_'):
             update_lang_db(user_id, query.data.split('_')[1])
@@ -351,19 +353,45 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
             # Получаем количество запросов из callback_data
             amount = query.data.split('_')[1]
             if amount == "subscribe":
-                price = 200 * 100  # Цена подписки
+                price = 200  # Цена подписки
                 title = "SnappyGPT Middle Subscription"
+                # Данные для provider_data
+                provider_data = {
+                    "receipt": {
+                        "items": [
+                            {
+                                "description": "SnappyGPT Middle Subscription",
+                                "quantity": 1,
+                                "amount": {
+                                    "value": price,
+                                    "currency": "RUB"
+                                },
+                                "vat_code": 1,
+                                "payment_mode": "full_payment",
+                                "payment_subject": "commodity"
+                            }
+                        ],
+                        "tax_system_code": 1
+                    }
+                }
+
+                # Преобразуем в JSON-строку
+                provider_data_json = json.dumps(provider_data)
 
                 # Создаем инвойс для подписки
                 await query.message.reply_invoice(
+                    chat_id=chat_id,
                     title=title,
                     description="SnappyGPT Middle Monthly Subscription for 200rub",
                     payload="rub_subscribe_middle",
                     provider_token='390540012:LIVE:63802',  # Замените на ваш токен провайдера
                     currency='RUB',
-                    prices=[LabeledPrice(label="RUB", amount=price)],
+                    prices=[LabeledPrice(label="RUB", amount=price*100)],
                     # Указываем цену в копейках
-                    start_parameter='subscribe_middle'
+                    start_parameter='subscribe_middle',
+                    need_email=True,
+                    send_email_to_provider=True,
+                    provider_data=provider_data_json
                 )
             else:
                 prices = {
@@ -374,16 +402,42 @@ Paid queries are used after the free limit is used up""", reply_markup=reply_mar
                 }
                 price = prices[amount]
                 title = f"Purchase {amount} queries"
+                # Данные для provider_data
+                provider_data = {
+                    "receipt": {
+                        "items": [
+                            {
+                                "description": f"Purchase {amount} queries",
+                                "quantity": 1,
+                                "amount": {
+                                    "value": price,
+                                    "currency": "RUB"
+                                },
+                                "vat_code": 1,
+                                "payment_mode": "full_payment",
+                                "payment_subject": "commodity"
+                            }
+                        ],
+                        "tax_system_code": 1
+                    }
+                }
+
+                # Преобразуем в JSON-строку
+                provider_data_json = json.dumps(provider_data)
 
                 # Создаем инвойс
                 await query.message.reply_invoice(
+                    chat_id=chat_id,
                     title=title,
                     description=f"You are about to buy {amount} queries for {price}rub",
                     payload=f"rub_{amount}",
                     provider_token='390540012:LIVE:63802',  # Замените на ваш токен провайдера
                     currency='RUB',
                     prices=[LabeledPrice(label="RUB", amount=price * 100)],  # Указываем цену в копейках
-                    start_parameter='buy_requests'
+                    start_parameter='buy_requests',
+                    need_email=True,
+                    send_email_to_provider=True,
+                    provider_data=provider_data_json
                 )
 
 
